@@ -55,7 +55,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Rate limiting for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: config.nodeEnv === 'development' ? 5000 : 20,
+  max: config.nodeEnv === 'development' ? 5000 : 100,
   skip: () => config.nodeEnv === 'development',
   message: { success: false, message: 'Too many requests. Please try again later.' },
   standardHeaders: true,
