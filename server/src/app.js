@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const config = require('./config/config');
+const connectDB = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 // Route imports
@@ -22,7 +23,6 @@ const complaintRoutes = require('./routes/complaints');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
-// Server app instance
 
 // Security middleware
 app.use(helmet());
@@ -62,9 +62,38 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'HunarHub API is running', timestamp: new Date().toISOString() });
+// Health check endpoint (includes DB connectivity check without exposing secrets)
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'disconnected';
+  try {
+    const conn = await connectDB();
+    const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+    dbStatus = states[conn.connection.readyState] || 'connected';
+  } catch (err) {
+    dbStatus = 'failed';
+  }
+
+  res.json({
+    success: true,
+    message: 'HunarHub API is running',
+    database: dbStatus,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Async DB Connection Middleware for Serverless & Express
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error('Database connection middleware error:', error.message);
+    return res.status(503).json({
+      success: false,
+      message: 'Database connection failed. Please verify server environment configuration.',
+      error: config.nodeEnv === 'development' ? error.message : undefined,
+    });
+  }
 });
 
 // Routes
