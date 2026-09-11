@@ -1,20 +1,23 @@
 import axios from 'axios';
-import toast from 'react-hot-toast';
 
-const getBaseURL = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-    return 'https://hunar-hub-fwp5.vercel.app/api';
-  }
-  return '/api';
-};
+/**
+ * Always use `/api` (relative path).
+ *
+ * In production (hunar-hub-ten.vercel.app) the client's vercel.json rewrites
+ * `/api/:path*` → `https://hunar-hub-fwp5.vercel.app/api/:path*`
+ * so all requests stay same-origin from the browser's perspective (no CORS).
+ *
+ * In local development, vite.config.ts proxies `/api` → `http://localhost:5000`.
+ *
+ * If VITE_API_URL is explicitly set (e.g., for testing a different backend), honour it.
+ */
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 20000,
+  withCredentials: false,
 });
 
 // Request interceptor - attach token
@@ -29,22 +32,36 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor - handle errors
+// Response interceptor - handle errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.message || 'Something went wrong. Please try again.';
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      'Something went wrong. Please try again.';
 
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    // Only auto-logout on 401 when NOT on an auth route (login/register calls
+    // legitimately return 401 for bad credentials and must NOT trigger logout).
+    const requestUrl: string = error.config?.url ?? '';
+    const isAuthRoute =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register');
+
+    if (error.response?.status === 401 && !isAuthRoute) {
       localStorage.removeItem('hunarhub_token');
       localStorage.removeItem('hunarhub_user');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+      if (
+        window.location.pathname !== '/login' &&
+        window.location.pathname !== '/register'
+      ) {
         window.location.href = '/login';
       }
     }
 
-    return Promise.reject({ ...error, displayMessage: message });
+    // Attach display-friendly message and re-throw
+    const enrichedError = Object.assign(error, { displayMessage: message });
+    return Promise.reject(enrichedError);
   }
 );
 

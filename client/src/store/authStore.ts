@@ -38,7 +38,12 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.setItem('hunarhub_token', token);
           set({ user, token, profile: profile || null, isAuthenticated: true, isLoading: false });
         } catch (error: any) {
-          const errMsg = error.response?.data?.message || 'Login failed. Please check credentials.';
+          // displayMessage is enriched by api.ts response interceptor
+          const errMsg =
+            error?.displayMessage ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'Login failed. Please check your credentials.';
           set({ isLoading: false, error: errMsg });
           throw error;
         }
@@ -52,7 +57,11 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.setItem('hunarhub_token', token);
           set({ user, token, profile: null, isAuthenticated: true, isLoading: false });
         } catch (error: any) {
-          const errMsg = error.response?.data?.message || 'Registration failed. Try again.';
+          const errMsg =
+            error?.displayMessage ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'Registration failed. Try again.';
           set({ isLoading: false, error: errMsg });
           throw error;
         }
@@ -68,7 +77,11 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.setItem('hunarhub_token', token);
           set({ user, token, profile, isAuthenticated: true, isLoading: false });
         } catch (error: any) {
-          const errMsg = error.response?.data?.message || 'Registration failed.';
+          const errMsg =
+            error?.displayMessage ||
+            error?.response?.data?.message ||
+            error?.message ||
+            'Registration failed.';
           set({ isLoading: false, error: errMsg });
           throw error;
         }
@@ -105,7 +118,12 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'hunarhub_auth',
-      partialize: (state) => ({ user: state.user, token: state.token, profile: state.profile, isAuthenticated: state.isAuthenticated }),
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        profile: state.profile,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 );

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const { registerCustomer, registerEntrepreneur, login, getMe, logout } = require('../controllers/authController');
+const { seedDemoUsers } = require('../controllers/seedController');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { upload } = require('../config/cloudinary');
@@ -46,5 +47,8 @@ router.post(
 
 router.get('/me', authenticate, getMe);
 router.post('/logout', authenticate, logout);
+
+// Production-safe demo user seeder (idempotent, upsert-only, never deletes data)
+router.post('/seed-demo-users', seedDemoUsers);
 
 module.exports = router;
